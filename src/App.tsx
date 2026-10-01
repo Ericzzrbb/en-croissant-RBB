@@ -23,6 +23,7 @@ import {
   activeTabAtom,
   databaseConversionStateAtom,
   fontSizeAtom,
+  pieceSetAtom,
   primaryColorAtom,
   referenceDbAtom,
   spellCheckAtom,
@@ -60,7 +61,6 @@ import { ask } from "@tauri-apps/plugin-dialog";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check } from "@tauri-apps/plugin-updater";
 import ErrorComponent from "@/components/ErrorComponent";
-import PieceSetStyles from "@/components/common/PieceSetStyles";
 import { getDatabasesDir, getDocumentDir, getEnginesDir, getPuzzlesDir } from "@/utils/directories";
 import { initUserAgent } from "@/utils/http";
 import { routeTree } from "./routeTree.gen";
@@ -206,6 +206,7 @@ function useAppStartup() {
 
 export default function App() {
   const primaryColor = useAtomValue(primaryColorAtom);
+  const pieceSet = useAtomValue(pieceSetAtom);
   const fontSize = useAtomValue(fontSizeAtom);
   const spellCheck = useAtomValue(spellCheckAtom);
   const setDatabaseConversionState = useSetAtom(databaseConversionStateAtom);
@@ -274,6 +275,8 @@ export default function App() {
 
   return (
     <DndProvider backend={HTML5Backend}>
+      <link rel="stylesheet" href={`/pieces/${pieceSet}.css`} />
+
       <MantineProvider
         colorSchemeManager={colorSchemeManager}
         defaultColorScheme="dark"
@@ -281,7 +284,6 @@ export default function App() {
       >
         <ContextMenuProvider>
           <Notifications />
-          <PieceSetStyles />
           <RouterProvider router={router} />
         </ContextMenuProvider>
       </MantineProvider>
