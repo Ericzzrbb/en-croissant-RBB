@@ -27,6 +27,7 @@ import {
     type MasterGamesOptions,
     masterOptionsSchema,
 } from "@/utils/lichess/explorer";
+import { DEFAULT_PIECE_SET } from "@/utils/pieceSets";
 import { getWinChance, normalizeScore } from "@/utils/score";
 import { genID, type Tab, tabSchema } from "@/utils/tabs";
 import { getEnginesDir } from "../utils/directories";
@@ -207,7 +208,14 @@ export const soundVolumeAtom = atomWithStorage<number>("sound-volume", 0.8, unde
     getOnInit: true,
 });
 
-export const pieceSetAtom = atomWithStorage<string>("piece-set", "staunty");
+export const pieceSetAtom = atomWithStorage<string>("piece-set", DEFAULT_PIECE_SET, undefined, {
+    getOnInit: true,
+});
+/**
+ * Bumped whenever the user imports, deletes or refreshes custom piece sets, so
+ * that the theme loader re-reads the stylesheet from disk.
+ */
+export const customPieceSetsRevisionAtom = atom(0);
 export const boardImageAtom = atomWithStorage<string>("board-image", "gray.svg");
 export const primaryColorAtom = atomWithStorage<MantineColor>("mantine-primary-color", "blue");
 export const sessionsAtom = atomWithStorage<Session[]>("sessions", []);
