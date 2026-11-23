@@ -40,13 +40,33 @@
   border-radius: 0;
 }
 
+/* Keeps the move notation and its classification badge together, so the badge
+   stays glued to the SAN instead of drifting into the middle of the row. */
+.content {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.cellFullWidth .content {
+  flex: 1 1 auto;
+}
+
 .moveText {
   display: inline-flex;
   align-items: center;
   min-width: 0;
-  flex-grow: 1;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.badgeSlot {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  line-height: 1;
 }
 
 .rightAccessory {

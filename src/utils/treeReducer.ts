@@ -4,6 +4,7 @@ import { INITIAL_FEN } from "chessops/fen";
 import type { Outcome, Score } from "@/bindings";
 import type { Annotation } from "./annotation";
 import { positionFromFen } from "./chessops";
+import type { MoveClassification } from "./classification";
 
 export interface TreeState {
     root: TreeNode;
@@ -23,6 +24,12 @@ export interface TreeNode {
     halfMoves: number;
     shapes: DrawShape[];
     annotations: Annotation[];
+    /**
+     * Chess.com style classification of this move, filled in by the game
+     * report generator. Optional because imported or manually played moves
+     * only carry annotations.
+     */
+    classification?: MoveClassification | null;
     comment: string;
     clock?: number;
     elapsedTime?: number;

@@ -1,0 +1,35 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 1.3em;
+  height: 1.3em;
+  border-radius: 50%;
+  background-color: var(--badge-bg, #868e96);
+  color: var(--badge-fg, #ffffff);
+  line-height: 1;
+  vertical-align: middle;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+  user-select: none;
+}
+
+.glyph {
+  font-size: 0.52em;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+/* Neutral placeholder for moves that have no evaluation yet. */
+.unknown {
+  background-color: transparent;
+  color: #868e96;
+  opacity: 0.55;
+  box-shadow: inset 0 0 0 1.5px currentColor;
+}
+
+.icon {
+  width: 0.62em;
+  height: 0.62em;
+}

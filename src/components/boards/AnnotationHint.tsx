@@ -2,19 +2,31 @@ import { Box } from "@mantine/core";
 import type { Color, Square } from "chessops";
 import type { ReactNode } from "react";
 import { ANNOTATION_INFO, type Annotation } from "@/utils/annotation";
+import { CLASSIFICATION_INFO, type MoveClassification } from "@/utils/classification";
 import { squareToCoordinates } from "@/utils/chessops";
 
+/**
+ * Hint drawn on the destination square of the last move.
+ *
+ * When the move has a Chess.com style classification, the classification badge
+ * is drawn instead of the classical annotation glyph, using the exact same
+ * colors and symbols as the move list badges.
+ */
 export default function AnnotationHint({
   square,
   annotation,
   orientation,
+  classification,
 }: {
   square: Square;
   annotation: Annotation;
   orientation: Color;
+  /** Classification of the last move, if any. Takes precedence over `annotation`. */
+  classification?: MoveClassification | null;
 }) {
   const { file, rank } = squareToCoordinates(square, orientation);
-  const color = ANNOTATION_INFO[annotation]?.color || "gray";
+  const info = classification ? CLASSIFICATION_INFO[classification] : null;
+  const color = info?.color ?? ANNOTATION_INFO[annotation]?.color ?? "gray";
 
   return (
     <Box
@@ -24,13 +36,15 @@ export default function AnnotationHint({
         height: "12.5%",
         left: `${(file - 1) * 12.5}%`,
         bottom: `${(rank - 1) * 12.5}%`,
+        // Purely decorative, never block moves or board interactions.
+        pointerEvents: "none",
       }}
     >
-      <Box pl="90%">
+      <Box pl="78%">
         {
           <Box
             style={{
-              transform: "translateY(-40%) translateX(-50%)",
+              transform: "translateY(-10%) translateX(-50%)",
               zIndex: 100,
               filter: "url(#shadow)",
               overflow: "initial",
@@ -40,21 +54,82 @@ export default function AnnotationHint({
             h="45%"
             pos="absolute"
             bg={color}
-            variant="filled"
+            role="img"
+            aria-label={info ? info.name : annotation}
           >
-            <svg viewBox="0 0 100 100">
-              <title>{annotation}</title>
-              <defs>
-                <filter id="shadow">
-                  <feDropShadow dx="0" dy="1" floodOpacity="0.3" stdDeviation="0" />
-                </filter>
-              </defs>
-              <g>{glyphToSvg[annotation]}</g>
-            </svg>
+            {classification && info ? (
+              <ClassificationGlyph classification={classification} />
+            ) : (
+              <svg viewBox="0 0 100 100">
+                <title>{annotation}</title>
+                <defs>
+                  <filter id="shadow">
+                    <feDropShadow dx="0" dy="1" floodOpacity="0.3" stdDeviation="0" />
+                  </filter>
+                </defs>
+                <g>{glyphToSvg[annotation]}</g>
+              </svg>
+            )}
           </Box>
         }
       </Box>
     </Box>
+  );
+}
+
+/** Badge content of a classification, scaled to the full hint circle. */
+function ClassificationGlyph({ classification }: { classification: MoveClassification }) {
+  const info = CLASSIFICATION_INFO[classification];
+
+  return (
+    <svg viewBox="0 0 100 100" aria-hidden="true">
+      <title>{info.name}</title>
+      <defs>
+        <filter id="shadow">
+          <feDropShadow dx="0" dy="1" floodOpacity="0.3" stdDeviation="0" />
+        </filter>
+      </defs>
+      {classification === "book" ? (
+        <g
+          transform="translate(23.6 23.6) scale(2.2)"
+          stroke={info.textColor}
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+        >
+          <path d="M3 19a9 9 0 0 1 9 0a9 9 0 0 1 9 0" />
+          <path d="M3 6a9 9 0 0 1 9 0a9 9 0 0 1 9 0" />
+          <path d="M3 6v13" />
+          <path d="M12 6v13" />
+          <path d="M21 6v13" />
+        </g>
+      ) : classification === "excellent" ? (
+        // thumbs up, same icon as the move list badge
+        <g
+          transform="translate(26 26) scale(2)"
+          stroke={info.textColor}
+          strokeWidth={2.2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+        >
+          <path d="M7 11v8a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1v-7a1 1 0 0 1 1 -1h3a4 4 0 0 0 4 -4v-1a2 2 0 0 1 4 0v5h3a2 2 0 0 1 2 2l-1 5a2 3 0 0 1 -2 2h-7a3 3 0 0 1 -3 -3" />
+        </g>
+      ) : (
+        <text
+          x="50"
+          y="52"
+          textAnchor="middle"
+          dominantBaseline="central"
+          fontSize="54"
+          fontWeight="800"
+          fill={info.textColor}
+        >
+          {info.symbol}
+        </text>
+      )}
+    </svg>
   );
 }
 

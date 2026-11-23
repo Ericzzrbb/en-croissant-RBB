@@ -158,6 +158,12 @@ function BestMovesComponent({
       [ev, searchingFen, searchingMoves],
     ),
   );
+  // The engine may compute an extra runner-up line for the move classification,
+  // only show the number of lines the user configured.
+  const configuredMultiPv = Math.max(
+    1,
+    Number.parseInt(String(settings.settings.find((s) => s.name === "MultiPV")?.value ?? 1)) || 1,
+  );
 
   return (
     <>
@@ -303,7 +309,7 @@ function BestMovesComponent({
               !error &&
               finalFen &&
               engineVariations &&
-              engineVariations.map((engineVariation, index) => {
+              engineVariations.slice(0, configuredMultiPv).map((engineVariation, index) => {
                 return (
                   <AnalysisRow
                     key={index}

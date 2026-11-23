@@ -11,6 +11,8 @@ const RELEASE_OWNER = process.env.AIX_EXTENSION_OWNER || "franciscoBSalgueiro";
 const RELEASE_REPO = process.env.AIX_EXTENSION_REPO || "aix";
 const RELEASE_TAG = process.env.AIX_EXTENSION_TAG || "latest";
 const EXPLICIT_TARGET = process.env.AIX_EXTENSION_TARGET;
+/** Optional mirror/URL override for networks where GitHub release assets are blocked. */
+const EXPLICIT_URL = process.env.AIX_EXTENSION_URL?.trim();
 const FORCE_DOWNLOAD = process.env.AIX_EXTENSION_FORCE_DOWNLOAD === "1";
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
 
@@ -76,8 +78,10 @@ async function fetchRelease() {
   return response.json();
 }
 
-async function downloadAsset(url, destination) {
-  const response = await fetch(url, { headers: buildHeaders() });
+async function downloadFromUrl(url, destination, accept = "application/octet-stream") {
+  const response = await fetch(url, {
+    headers: { ...buildHeaders(), Accept: accept },
+  });
   if (!response.ok || !response.body) {
     const body = await response.text();
     throw new Error(
@@ -88,6 +92,28 @@ async function downloadAsset(url, destination) {
   const tempPath = `${destination}.tmp`;
   await pipeline(Readable.fromWeb(response.body), createWriteStream(tempPath));
   await fs.rename(tempPath, destination);
+}
+
+/**
+ * Prefer the release asset's API URL: it is served through api.github.com and
+ * only redirects to the asset host, so builds behind proxies that block
+ * github.com/…/releases/download still work. Fall back to the browser URL.
+ */
+async function downloadAsset(asset, destination) {
+  const urls = [asset.url, asset.browser_download_url].filter(Boolean);
+  let lastError;
+
+  for (const url of urls) {
+    try {
+      await downloadFromUrl(url, destination);
+      return;
+    } catch (error) {
+      lastError = error;
+      console.warn(`Download from ${url} failed: ${error.message}`);
+    }
+  }
+
+  throw lastError ?? new Error("No download URL for the aix extension asset");
 }
 
 async function main() {
@@ -107,6 +133,12 @@ async function main() {
     }
   }
 
+  if (EXPLICIT_URL) {
+    await downloadFromUrl(EXPLICIT_URL, outputPath);
+    console.log(`Downloaded aix extension from ${EXPLICIT_URL} to ${outputPath}`);
+    return;
+  }
+
   const release = await fetchRelease();
   const suffix = `-extension-${target}.duckdb_extension`;
   const asset = release.assets?.find((item) => item.name?.endsWith(suffix));
@@ -118,11 +150,15 @@ async function main() {
     );
   }
 
-  await downloadAsset(asset.browser_download_url, outputPath);
+  await downloadAsset(asset, outputPath);
   console.log(`Downloaded ${asset.name} from release ${release.tag_name} to ${outputPath}`);
 }
 
 main().catch((error) => {
   console.error(error.message);
+  if (error.cause) {
+    const cause = error.cause;
+    console.error(`Cause: ${cause.code ? `${cause.code} ` : ""}${cause.message ?? cause}`);
+  }
   process.exit(1);
 });

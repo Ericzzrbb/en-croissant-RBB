@@ -4,6 +4,7 @@ import { useAtom } from "jotai";
 import type { ReactNode, RefObject } from "react";
 import { currentShowCommentsAtom, moveNotationTypeAtom } from "@/state/atoms";
 import { ANNOTATION_INFO, type Annotation, addPieceSymbol } from "@/utils/annotation";
+import { getAnnotationClassification } from "@/utils/classification";
 import classes from "./MoveCell.module.css";
 
 interface MoveCellProps {
@@ -14,6 +15,8 @@ interface MoveCellProps {
   onClick: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
   fullWidth?: boolean;
+  /** Optional classification badge rendered right after the move notation. */
+  badge?: ReactNode;
   rightAccessory?: ReactNode;
   ref?: RefObject<HTMLButtonElement>;
 }
@@ -22,6 +25,11 @@ function MoveCell(props: MoveCellProps) {
   const [moveNotationType] = useAtom(moveNotationTypeAtom);
   const [showComments] = useAtom(currentShowCommentsAtom);
   const visualAnnotation = showComments ? props.annotations[0] : "";
+  // The badge already carries the classification, so the matching glyphs are
+  // not repeated as text right next to the move.
+  const annotationText = props.badge
+    ? props.annotations.filter((a) => getAnnotationClassification(a) === null).join("")
+    : props.annotations.join("");
 
   const color = ANNOTATION_INFO[visualAnnotation]?.color || "gray";
   const theme = useMantineTheme();
@@ -63,10 +71,17 @@ function MoveCell(props: MoveCellProps) {
       onClick={props.onClick}
       onContextMenu={props.onContextMenu}
     >
-      <Box component="span" className={classes.moveText}>
-        {props.isStart && <IconFlag style={{ marginRight: 5 }} size="0.875rem" />}
-        {moveNotationType === "symbols" ? addPieceSymbol(props.move) : props.move}
-        {showComments ? props.annotations.join("") : ""}
+      <Box component="span" className={classes.content}>
+        <Box component="span" className={classes.moveText}>
+          {props.isStart && <IconFlag style={{ marginRight: 5 }} size="0.875rem" />}
+          {moveNotationType === "symbols" ? addPieceSymbol(props.move) : props.move}
+          {showComments ? annotationText : ""}
+        </Box>
+        {props.badge && (
+          <Box component="span" className={classes.badgeSlot}>
+            {props.badge}
+          </Box>
+        )}
       </Box>
       {props.rightAccessory && (
         <Box component="span" className={classes.rightAccessory}>

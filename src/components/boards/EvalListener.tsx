@@ -215,6 +215,16 @@ function EngineListener({
               name: s.name,
               value: s.value?.toString() || "",
             })) ?? [];
+          // The runner-up line is required to detect "only good move" (Great),
+          // exactly like the game report, which always requests MultiPV 2.
+          if (engine.type === "local") {
+            const multiPv = options.find((option) => option.name === "MultiPV");
+            if (!multiPv) {
+              options.push({ name: "MultiPV", value: "2" });
+            } else if (Number.parseInt(multiPv.value) < 2) {
+              multiPv.value = "2";
+            }
+          }
           getBestMoves(activeTab!, settings.go, {
             moves: searchingMoves,
             fen: searchingFen,

@@ -10,6 +10,7 @@ import { createDebouncedSessionStorage } from "./debouncedStorage";
 import { ANNOTATION_INFO, type Annotation } from "@/utils/annotation";
 import { getPGN } from "@/utils/chess";
 import { parseSanOrUci, positionFromFen } from "@/utils/chessops";
+import { getAnnotationClassification, getMoveClassification } from "@/utils/classification";
 import { isPrefix } from "@/utils/misc";
 import { getAnnotation } from "@/utils/score";
 import { playSound } from "@/utils/sound";
@@ -425,6 +426,12 @@ export const createTreeStore = (id?: string, initialTree?: TreeState) => {
                     state.dirty = true;
                     const node = getNodeAtPath(state.root, state.position);
                     if (node) {
+                        // Overriding the move quality makes the classification
+                        // computed by the report stale, so the badge follows the
+                        // annotation again.
+                        if (node.classification && getAnnotationClassification(payload)) {
+                            node.classification = null;
+                        }
                         if (node.annotations.includes(payload)) {
                             node.annotations = node.annotations.filter((a) => a !== payload);
                         } else {
@@ -799,6 +806,20 @@ function addAnalysis(
                         }
                     }
                 }
+            }
+            if (i > 0 && cur.san) {
+                // Brilliant only comes from the report annotation (`!!`), never
+                // from the evaluation, so the badge always matches the report.
+                cur.classification = cur.annotations.includes("!!")
+                    ? "brilliant"
+                    : getMoveClassification({
+                          annotation,
+                          evalBefore: prevScore?.value ?? null,
+                          evalAfter: curScore.value,
+                          color,
+                          engineMoves: prevMoves,
+                          playedMoveSan: cur.san,
+                      });
             }
             if (analysis[i].novelty) {
                 cur.annotations = [...cur.annotations, "N"];

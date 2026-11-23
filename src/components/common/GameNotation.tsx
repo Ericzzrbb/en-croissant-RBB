@@ -43,6 +43,7 @@ import {
 import { keyMapAtom } from "@/state/keybinds";
 import { formatScore } from "@/utils/score";
 import { getNodeAtPath, type TreeNode } from "@/utils/treeReducer";
+import { BookPositionsProvider } from "./BookPositionsContext";
 import CompleteMoveCell from "./CompleteMoveCell";
 import styles from "./GameNotation.module.css";
 import OpeningName from "./OpeningName";
@@ -597,4 +598,16 @@ function VariationCell({ moveNodes }: { moveNodes: React.ReactNode[] }) {
   );
 }
 
-export default memo(GameNotation);
+/**
+ * Provides the opening book positions used by the move badges. Kept outside of
+ * `GameNotation` so that refreshing them does not re-render the whole notation.
+ */
+function GameNotationWithBadges(props: { topBar?: boolean; controls?: React.ReactNode }) {
+  return (
+    <BookPositionsProvider>
+      <GameNotation {...props} />
+    </BookPositionsProvider>
+  );
+}
+
+export default memo(GameNotationWithBadges);
