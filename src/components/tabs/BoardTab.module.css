@@ -31,19 +31,19 @@
 }
 
 [data-mantine-color-scheme="light"] .selected {
-  background-color: var(--mantine-color-white);
+  background-color: var(--app-panel-background, var(--mantine-color-white));
 }
 
 [data-mantine-color-scheme="dark"] .selected {
-  background-color: var(--mantine-color-dark-7);
+  background-color: var(--app-panel-background, var(--mantine-color-dark-7));
 }
 
 [data-mantine-color-scheme="light"] .selected:hover {
-  background-color: var(--mantine-color-white);
+  background-color: var(--app-panel-background, var(--mantine-color-white));
 }
 
 [data-mantine-color-scheme="dark"] .selected:hover {
-  background-color: var(--mantine-color-dark-7);
+  background-color: var(--app-panel-background, var(--mantine-color-dark-7));
 }
 
 .input {

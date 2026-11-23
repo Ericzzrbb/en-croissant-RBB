@@ -5,6 +5,7 @@ import {
   Input,
   localStorageColorSchemeManager,
   MantineProvider,
+  Paper,
   Textarea,
   TextInput,
   v8CssVariablesResolver,
@@ -24,6 +25,8 @@ import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import {
   activeTabAtom,
+  autoUpdatePopupAtom,
+  customFontFamilyAtom,
   databaseConversionStateAtom,
   fontSizeAtom,
   is3dAtom,
@@ -65,7 +68,9 @@ import { ask } from "@tauri-apps/plugin-dialog";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check } from "@tauri-apps/plugin-updater";
 import ErrorComponent from "@/components/ErrorComponent";
+import CustomBackground from "@/components/common/CustomBackground";
 import PieceSetStyles from "@/components/common/PieceSetStyles";
+import { sanitizeFontFamily } from "@/utils/background";
 import {
   getDatabasesDir,
   getDocumentDir,
@@ -75,6 +80,7 @@ import {
 } from "@/utils/directories";
 import { initUserAgent } from "@/utils/http";
 import { routeTree } from "./routeTree.gen";
+import classes from "./App.module.css";
 
 export type Dirs = {
   documentDir: string;
@@ -169,9 +175,11 @@ function useAppStartup() {
       const detach = await attachConsole();
       info("React app started successfully");
 
-      checkForUpdates();
-
       const store = getDefaultStore();
+      if (store.get(autoUpdatePopupAtom)) {
+        checkForUpdates();
+      }
+
       const telemetryEnabled = store.get(telemetryEnabledAtom);
 
       posthog.init("phc_kgEBtifs0EgWlrl4ROYEbnsQ1b7BS2W5BKLNyXe7f8z", {
@@ -240,9 +248,11 @@ function useAppStartup() {
 
 export default function App() {
   const primaryColor = useAtomValue(primaryColorAtom);
+  const pieceSet = useAtomValue(pieceSetAtom);
   const fontSize = useAtomValue(fontSizeAtom);
   const spellCheck = useAtomValue(spellCheckAtom);
   const is3d = useAtomValue(is3dAtom);
+  const fontFamily = useAtomValue(customFontFamilyAtom);
   const setDatabaseConversionState = useSetAtom(databaseConversionStateAtom);
 
   useAppStartup();
@@ -272,9 +282,11 @@ export default function App() {
     };
   }, [setDatabaseConversionState]);
 
+  const themeFontFamily = sanitizeFontFamily(fontFamily);
   const theme = createTheme({
     defaultRadius: "sm",
     primaryColor,
+    ...(themeFontFamily ? { fontFamily: themeFontFamily } : {}),
     colors: {
       dark: [
         "#C1C2C5",
@@ -290,6 +302,13 @@ export default function App() {
       ],
     },
     components: {
+      Paper: Paper.extend({
+        styles: {
+          root: {
+            backgroundColor: "var(--app-panel-background, var(--mantine-color-body))",
+          },
+        },
+      }),
       ActionIcon: ActionIcon.extend({
         defaultProps: {
           variant: "transparent",
@@ -343,10 +362,13 @@ export default function App() {
         theme={theme}
       >
         <ContextMenuProvider>
-          <Notifications />
-          <PieceSetStyles />
-          <Notifications pauseResetOnHover="notification" />
-          <RouterProvider router={router} />
+          <CustomBackground />
+          <div className={classes.appContent}>
+            <Notifications />
+            <PieceSetStyles />
+            <Notifications pauseResetOnHover="notification" />
+            <RouterProvider router={router} />
+          </div>
         </ContextMenuProvider>
       </MantineProvider>
     </DndProvider>

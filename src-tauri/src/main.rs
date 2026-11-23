@@ -71,7 +71,6 @@ use crate::{
     },
 };
 use std::sync::atomic::AtomicBool;
-use tokio::sync::Semaphore;
 
 #[derive(Derivative)]
 #[derivative(Default)]

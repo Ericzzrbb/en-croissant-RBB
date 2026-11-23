@@ -36,6 +36,7 @@ import { useTranslation } from "react-i18next";
 import {
   autoPromoteAtom,
   autoSaveAtom,
+  autoUpdatePopupAtom,
   customPieceSetsRevisionAtom,
   defaultPanelTabAtom,
   enableBoardScrollAtom,
@@ -72,7 +73,9 @@ import { DEFAULT_PIECE_SET, isCustomPieceSetId } from "@/utils/pieceSets";
 import FileInput from "../common/FileInput";
 import BoardSelect from "./BoardSelect";
 import ColorControl from "./ColorControl";
+import CustomBackgroundSettings from "./CustomBackgroundSettings";
 import DimensionToggle from "./DimensionToggle";
+import FontFamilySetting from "./FontFamilySetting";
 import FontSizeSlider from "./FontSizeSlider";
 import KeybindInput from "./KeybindInput";
 import PiecesSelect from "./PiecesSelect";
@@ -528,6 +531,32 @@ export default function Page() {
           ]
         : []),
       {
+        id: "custom-background",
+        category: "appearance",
+        title: t("Settings.Appearance.Background"),
+        description: t("Settings.Appearance.Background.Desc"),
+        keywords: [
+          "background",
+          "wallpaper",
+          "image",
+          "opacity",
+          "transparency",
+          "brightness",
+          "color",
+          "theme",
+          "panel",
+        ],
+        render: () => <CustomBackgroundSettings />,
+      },
+      {
+        id: "font-family",
+        category: "appearance",
+        title: t("Settings.Appearance.FontFamily"),
+        description: t("Settings.Appearance.FontFamily.Desc"),
+        keywords: ["font", "typeface", "family", "serif", "sans", "text"],
+        render: () => <FontFamilySetting />,
+      },
+      {
         id: "font-size",
         category: "appearance",
         title: t("Settings.Appearance.FontSize"),
@@ -720,6 +749,14 @@ export default function Page() {
         ),
       },
       // Privacy settings
+      {
+        id: "auto-update-popup",
+        category: "privacy",
+        title: t("Settings.Privacy.AutoUpdatePopup"),
+        description: t("Settings.Privacy.AutoUpdatePopup.Desc"),
+        keywords: ["update", "updater", "popup", "automatic", "startup", "check"],
+        render: () => <SettingsSwitch atom={autoUpdatePopupAtom} />,
+      },
       {
         id: "telemetry",
         category: "privacy",
@@ -921,6 +958,10 @@ export default function Page() {
           styles={{
             tabLabel: {
               textAlign: "left",
+              color: "#000",
+            },
+            tab: {
+              color: "#000",
             },
           }}
         >

@@ -35,6 +35,18 @@ export default defineConfig({
         minify: isDebug ? false : "esbuild",
         sourcemap: isDebug ? "inline" : false,
         target: process.env.TAURI_ENV_PLATFORM == "windows" ? "chrome105" : "safari13",
+        // The desktop app ships a single large bundle; splitting it would only
+        // add request overhead in the Tauri webview.
+        chunkSizeWarningLimit: 6000,
+        rolldownOptions: {
+            onLog(level, log, handler) {
+                // Directives such as "use no memo" are React Compiler hints and
+                // are intentionally not preserved by the bundler. The same
+                // message is emitted for empty directives in dependencies.
+                if (log.code === "MODULE_LEVEL_DIRECTIVE") return;
+                handler(level, log);
+            },
+        },
     },
     resolve: {
         alias: {

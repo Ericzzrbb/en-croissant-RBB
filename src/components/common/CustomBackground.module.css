@@ -1,0 +1,9 @@
+.layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  /* The image is rendered by backgroundLayerStyle; this color is the fallback
+     while the webview has not decoded the image yet. */
+  background-color: var(--mantine-color-body);
+}

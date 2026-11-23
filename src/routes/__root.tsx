@@ -23,6 +23,7 @@ import { SideBar } from "@/components/Sidebar";
 import TopBar from "@/components/TopBar";
 import {
   activeTabAtom,
+  customBackgroundActiveAtom,
   nativeBarAtom,
   showSidebarAtom,
   showTabBarAtom,
@@ -94,6 +95,7 @@ export const Route = createRootRouteWithContext<{
 
 function RootLayout() {
   const isNative = useAtomValue(nativeBarAtom);
+  const customBackgroundActive = useAtomValue(customBackgroundActiveAtom);
   const navigate = useNavigate();
 
   const [, setTabs] = useAtom(tabsAtom);
@@ -428,7 +430,20 @@ function RootLayout() {
         main: {
           height: "100vh",
           userSelect: "none",
+          backgroundColor: customBackgroundActive ? "transparent" : undefined,
         },
+        ...(customBackgroundActive
+          ? {
+              navbar: {
+                backgroundColor: "var(--app-panel-background, var(--mantine-color-body))",
+                backdropFilter: "blur(8px)",
+              },
+              header: {
+                backgroundColor: "var(--app-panel-background, var(--mantine-color-body))",
+                backdropFilter: "blur(8px)",
+              },
+            }
+          : {}),
       }}
     >
       <AboutModal opened={opened} setOpened={setOpened} />

@@ -23,6 +23,8 @@ import { match } from "ts-pattern";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { Chessground, type ChessgroundRef } from "@/chessground/Chessground";
+import { useBookPosition } from "@/hooks/useBookPosition";
+import { useMoveClassification } from "@/hooks/useMoveClassification";
 import {
   autoPromoteAtom,
   bestMovesFamily,
@@ -52,6 +54,7 @@ import classes from "@/styles/Chessboard.module.css";
 import { ANNOTATION_INFO, isBasicAnnotation } from "@/utils/annotation";
 import { getMoveDestination, getVariationLine } from "@/utils/chess";
 import { chessopsError, forceEnPassant, positionFromFen } from "@/utils/chessops";
+import { CLASSIFICATION_INFO } from "@/utils/classification";
 import { getTabFile, getTabGameNumber } from "@/utils/tabs";
 import ShowMaterial from "../common/ShowMaterial";
 import { TreeStateContext } from "../common/TreeStateContext";
@@ -352,6 +355,24 @@ function Board({
   const showComments = useAtomValue(currentShowCommentsAtom);
   const visualAnnotation = showComments ? currentNode.annotations[0] : "";
 
+  // The same classification the move list shows, including opening book moves.
+  const isBookPosition = useBookPosition(currentNode.fen);
+  const position = useStore(store, (s) => s.position);
+  const moveClassification = useMoveClassification({
+    movePath: position,
+    isBook: isBookPosition,
+  });
+  const showAnnotationHint = showComments && currentNode.annotations.length > 0;
+
+  // The last move highlight uses the color of the move badge, so the board
+  // tells at a glance how good the move that led to the position was.
+  const badgeColor = moveClassification ? CLASSIFICATION_INFO[moveClassification].color : undefined;
+  const highlightColors = badgeColor
+    ? { "--light-color": badgeColor, "--dark-color": badgeColor }
+    : isBasicAnnotation(visualAnnotation)
+      ? { "--light-color": lightColor, "--dark-color": darkColor }
+      : undefined;
+
   const setBoardFen = useCallback(
     (fen: string) => {
       if (!fen || !editingMode) {
@@ -433,8 +454,7 @@ function Board({
             }}
             gap="sm"
           >
-            {showComments &&
-              currentNode.annotations.length > 0 &&
+            {(showAnnotationHint || moveClassification) &&
               currentNode.move &&
               square !== undefined && (
                 <Box pl="2.5rem" w="100%" h="100%" pos="absolute">
@@ -442,7 +462,8 @@ function Board({
                     <AnnotationHint
                       orientation={orientation}
                       square={square}
-                      annotation={currentNode.annotations[0]}
+                      annotation={currentNode.annotations[0] ?? ""}
+                      classification={moveClassification}
                     />
                   </Box>
                 </Box>
@@ -470,14 +491,7 @@ function Board({
               {evalOpen && <EvalBar score={currentNode.score || null} orientation={orientation} />}
             </Box>
             <Box
-              style={
-                isBasicAnnotation(visualAnnotation)
-                  ? {
-                      "--light-color": lightColor,
-                      "--dark-color": darkColor,
-                    }
-                  : undefined
-              }
+              style={highlightColors}
               className={`${classes.chessboard} ${is3d ? "is3d" : ""}`}
               ref={boardRef}
               onClick={() => {

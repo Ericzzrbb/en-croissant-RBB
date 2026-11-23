@@ -13,6 +13,16 @@ beforeEach(() => {
 
 const e4 = parseUci("e2e4")!;
 const d5 = parseUci("d7d5")!;
+
+const bestMoves = (san: string, value: number, multipv: number) => ({
+    nodes: 1,
+    depth: 20,
+    score: { value: { type: "cp" as const, value }, wdl: null },
+    uciMoves: ["a1a1"],
+    sanMoves: [san],
+    multipv,
+    nps: 1,
+});
 const treeE4D5: () => TreeState = () => ({
     ...defaultTree(),
     position: [0, 0],
@@ -548,6 +558,8 @@ test("should handle addAnalysis", () => {
             children: [
                 {
                     ...treeE4D5().root.children[0],
+                    // e4 is the engine's first choice, so the report tags it as best
+                    classification: "best",
                     score: {
                         value: {
                             type: "cp",
@@ -566,6 +578,128 @@ test("should handle addAnalysis", () => {
             },
         },
     });
+});
+
+test("should clear the report classification when the user overrides the move quality", () => {
+    const tree = treeE4D5();
+    tree.root.children[0].classification = "best";
+    store.setState({ ...tree, position: [0] });
+
+    store.getState().setAnnotation("?!");
+
+    expect(store.getState().root.children[0].classification).toBeNull();
+    expect(store.getState().root.children[0].annotations).toContain("?!");
+});
+
+test("should keep the report classification for positional annotations", () => {
+    const tree = treeE4D5();
+    tree.root.children[0].classification = "best";
+    store.setState({ ...tree, position: [0] });
+
+    store.getState().setAnnotation("N");
+
+    expect(store.getState().root.children[0].classification).toBe("best");
+});
+
+test("should classify the analyzed moves with the chess.com categories", () => {
+    store.getState().makeMoves({ payload: ["e2e4", "e7e5", "g1f3", "b8c6", "f1b5"] });
+
+    const analysis = [
+        {
+            best: [bestMoves("e4", 20, 1), bestMoves("d4", 10, 2)],
+            novelty: false,
+            is_sacrifice: false,
+        },
+        {
+            // the engine's runner up is e5, so playing it is "excellent"
+            best: [bestMoves("Nc6", 25, 1), bestMoves("e5", 24, 2)],
+            novelty: false,
+            is_sacrifice: false,
+        },
+        {
+            best: [bestMoves("Nf3", 30, 1), bestMoves("d4", -300, 2)],
+            novelty: false,
+            is_sacrifice: false,
+        },
+        {
+            best: [bestMoves("Nc6", 35, 1), bestMoves("d6", 30, 2)],
+            novelty: false,
+            is_sacrifice: false,
+        },
+        {
+            best: [bestMoves("Bb5", 250, 1), bestMoves("d4", 240, 2)],
+            novelty: false,
+            is_sacrifice: false,
+        },
+        {
+            best: [bestMoves("a6", 30, 1), bestMoves("Nf6", 20, 2)],
+            novelty: false,
+            is_sacrifice: false,
+        },
+    ];
+
+    store.getState().addAnalysis(analysis);
+
+    const classifications: (string | null | undefined)[] = [];
+    let node = store.getState().root;
+    while (node.children.length > 0) {
+        node = node.children[0];
+        classifications.push(node.classification);
+    }
+
+    // best, excellent, great, mistake, miss
+    expect(classifications).toEqual(["best", "excellent", "great", "mistake", "miss"]);
+});
+
+test("should take brilliant from the report annotation", () => {
+    store.getState().makeMoves({ payload: ["e2e4", "e7e5"] });
+
+    store.getState().addAnalysis([
+        {
+            best: [bestMoves("e4", 20, 1), bestMoves("d4", 10, 2)],
+            novelty: false,
+            is_sacrifice: false,
+        },
+        {
+            // black to move: e5 is the engine's first choice and the runner up
+            // is much worse, so the report can annotate it as a sacrifice
+            best: [bestMoves("e5", 25, 1), bestMoves("Nc6", 300, 2)],
+            novelty: false,
+            is_sacrifice: false,
+        },
+        {
+            best: [bestMoves("Nf3", 30, 1), bestMoves("d4", 20, 2)],
+            novelty: false,
+            is_sacrifice: true,
+        },
+    ]);
+
+    const e5 = store.getState().root.children[0].children[0];
+    expect(e5.annotations).toContain("!!");
+    expect(e5.classification).toBe("brilliant");
+});
+
+test("should keep a PGN !! as brilliant after the report", () => {
+    store.getState().makeMoves({ payload: ["e2e4"] });
+    store.getState().setAnnotation("!!");
+
+    store.getState().addAnalysis([
+        {
+            best: [bestMoves("e4", 20, 1), bestMoves("d4", 10, 2)],
+            novelty: false,
+            is_sacrifice: false,
+        },
+        {
+            best: [bestMoves("e5", 25, 1), bestMoves("Nc6", 20, 2)],
+            novelty: false,
+            is_sacrifice: false,
+        },
+    ]);
+
+    const e4 = store.getState().root.children[0];
+    expect(e4.annotations).toContain("!!");
+    // the report would classify it as "best", but `!!` always means brilliant
+    expect(e4.classification).toBe("brilliant");
 });
 
 test("should handle promoteVariation", () => {

@@ -24,6 +24,12 @@ import type { BestMoves, GoMode } from "@/bindings";
 import { DEFAULT_TIME_CONTROL, type OpponentSettings } from "@/components/boards/OpponentForm";
 import { type Position, positionSchema } from "@/components/files/opening";
 import type { LocalOptions } from "@/components/panels/database/DatabasePanel";
+import {
+    DEFAULT_BACKGROUND_BRIGHTNESS,
+    DEFAULT_BACKGROUND_OPACITY,
+    DEFAULT_FONT_FAMILY,
+    DEFAULT_PANEL_OPACITY,
+} from "@/utils/background";
 import { positionFromFen, swapMove } from "@/utils/chessops";
 import type { SuccessDatabaseInfo } from "@/utils/db";
 import { type Engine, type EngineSettings, engineSchema } from "@/utils/engines";
@@ -256,6 +262,64 @@ export const pieceSetAtom = atomWithStorage<string>("piece-set", DEFAULT_PIECE_S
 export const customPieceSetsRevisionAtom = atom(0);
 export const boardImageAtom = atomWithStorage<string>("board-image", "gray.svg");
 export const is3dAtom = atomWithStorage<boolean>("is-3d", false);
+
+// Custom app background and font
+
+export const customBackgroundEnabledAtom = atomWithStorage<boolean>(
+    "custom-background-enabled",
+    false,
+    undefined,
+    { getOnInit: true },
+);
+/** Path of a copy stored in the backgrounds directory. */
+export const customBackgroundImageAtom = atomWithStorage<string>(
+    "custom-background-image",
+    "",
+    undefined,
+    { getOnInit: true },
+);
+/** 0 - 100. */
+export const customBackgroundOpacityAtom = atomWithStorage<number>(
+    "custom-background-opacity",
+    DEFAULT_BACKGROUND_OPACITY,
+    undefined,
+    { getOnInit: true },
+);
+/** 0 - 200, where 100 keeps the image unchanged. */
+export const customBackgroundBrightnessAtom = atomWithStorage<number>(
+    "custom-background-brightness",
+    DEFAULT_BACKGROUND_BRIGHTNESS,
+    undefined,
+    { getOnInit: true },
+);
+/** Base color of the background; empty means the theme color. */
+export const customBackgroundColorAtom = atomWithStorage<string>(
+    "custom-background-color",
+    "",
+    undefined,
+    { getOnInit: true },
+);
+/** 0 - 100; opacity of the app shell and panels over the background. */
+export const panelOpacityAtom = atomWithStorage<number>(
+    "panel-opacity",
+    DEFAULT_PANEL_OPACITY,
+    undefined,
+    { getOnInit: true },
+);
+
+/** Font family used by Mantine (empty falls back to the system default). */
+export const customFontFamilyAtom = atomWithStorage<string>(
+    "font-family",
+    DEFAULT_FONT_FAMILY,
+    undefined,
+    { getOnInit: true },
+);
+
+export const customBackgroundActiveAtom = atom(
+    (get) =>
+        get(customBackgroundEnabledAtom) &&
+        (get(customBackgroundImageAtom) !== "" || get(customBackgroundColorAtom) !== ""),
+);
 export const primaryColorAtom = atomWithStorage<MantineColor>("mantine-primary-color", "blue");
 export const sessionsAtom = atomWithStorage<Session[]>("sessions", []);
 export const nativeBarAtom = atomWithStorage<boolean>("native-bar", false);
@@ -265,6 +329,13 @@ export const showTabBarAtom = atomWithStorage<boolean>("show-tabbar", true);
 export const telemetryEnabledAtom = atomWithStorage<boolean>("telemetry-enabled", true, undefined, {
     getOnInit: true,
 });
+/** Automatically check for updates and show the update dialog on startup. */
+export const autoUpdatePopupAtom = atomWithStorage<boolean>(
+    "auto-update-popup",
+    true,
+    undefined,
+    { getOnInit: true },
+);
 
 // Recent Files
 
@@ -604,6 +675,31 @@ export const engineProgressFamily = atomFamily(
     (a, b) => a.tab === b.tab && a.engine === b.engine,
 );
 
+/**
+ * Engine lines of the first loaded engine that already analyzed a position.
+ * Used to classify moves live, without waiting for a game report.
+ */
+export const positionEngineLinesFamily = atomFamily(
+    ({ fen, gameMoves }: { fen: string; gameMoves: string[] }) =>
+        atom<BestMoves[] | null>((get) => {
+            const tab = get(activeTabAtom);
+            if (!tab) return null;
+            const engines = get(enginesAtom);
+            if (!engines) return null;
+
+            const key = `${fen}:${gameMoves.join(",")}`;
+            for (const engine of engines) {
+                if (!engine.loaded) continue;
+                const lines = get(engineMovesFamily({ tab, engine: engine.id })).get(key);
+                if (lines && lines.length > 0) {
+                    return lines;
+                }
+            }
+            return null;
+        }),
+    (a, b) => a.fen === b.fen && equal(a.gameMoves, b.gameMoves),
+);
+
 // returns the best moves of each engine for the current position
 export const bestMovesFamily = atomFamily(
     ({ fen, gameMoves }: { fen: string; gameMoves: string[] }) =>
@@ -632,17 +728,40 @@ export const bestMovesFamily = atomFamily(
                     const bestWinChange = getWinChance(
                         normalizeScore(moves[0].score.value, pos?.turn || "white"),
                     );
+                    // The engine may compute an extra runner-up line for the
+                    // move classification, but only the configured number of
+                    // lines should be shown as arrows.
+                    const configuredMultiPv = Math.max(
+                        1,
+                        Number.parseInt(
+                            String(
+                                get(
+                                    tabEngineSettingsFamily({
+                                        tab,
+                                        engineId: engine.id,
+                                        defaultSettings:
+                                            engine.type === "local"
+                                                ? engine.settings || undefined
+                                                : undefined,
+                                        defaultGo: engine.go ?? undefined,
+                                    }),
+                                ).settings.find((s) => s.name === "MultiPV")?.value ?? 1,
+                            ),
+                        ) || 1,
+                    );
                     bestMoves.set(
                         n,
-                        moves.reduce<{ pv: string[]; winChance: number }[]>((acc, m) => {
-                            const winChance = getWinChance(
-                                normalizeScore(m.score.value, pos?.turn || "white"),
-                            );
-                            if (bestWinChange - winChance < 10) {
-                                acc.push({ pv: m.uciMoves, winChance });
-                            }
-                            return acc;
-                        }, []),
+                        moves
+                            .reduce<{ pv: string[]; winChance: number }[]>((acc, m) => {
+                                const winChance = getWinChance(
+                                    normalizeScore(m.score.value, pos?.turn || "white"),
+                                );
+                                if (bestWinChange - winChance < 10) {
+                                    acc.push({ pv: m.uciMoves, winChance });
+                                }
+                                return acc;
+                            }, [])
+                            .slice(0, configuredMultiPv),
                     );
                 }
                 n++;

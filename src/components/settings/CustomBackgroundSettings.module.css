@@ -1,0 +1,24 @@
+.preview {
+  position: relative;
+  height: 7rem;
+  overflow: hidden;
+  border: 1px solid var(--mantine-color-default-border);
+  border-radius: var(--mantine-radius-sm);
+  background-color: var(--mantine-color-body);
+}
+
+.previewLayer {
+  position: absolute;
+  inset: 0;
+}
+
+.previewLabel {
+  position: absolute;
+  left: 0.5rem;
+  bottom: 0.4rem;
+  padding: 0 0.35rem;
+  border-radius: var(--mantine-radius-xs);
+  color: var(--mantine-color-dimmed);
+  background-color: color-mix(in srgb, var(--mantine-color-body) 75%, transparent);
+  pointer-events: none;
+}

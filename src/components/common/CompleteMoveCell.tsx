@@ -16,11 +16,14 @@ import { useStore } from "zustand";
 import { useStoreWithEqualityFn } from "zustand/traditional";
 import Comment from "@/components/common/Comment";
 import { useDeleteMove } from "@/hooks/useDeleteMove";
+import { useMoveClassification } from "@/hooks/useMoveClassification";
 import { currentTabAtom } from "@/state/atoms";
 import type { Annotation } from "@/utils/annotation";
 import { hasMorePriority, stripClock } from "@/utils/chess";
 import { getTabFile } from "@/utils/tabs";
 import { type TreeNode, treeIterator } from "@/utils/treeReducer";
+import { useBookPositions } from "./BookPositionsContext";
+import MoveBadge from "./MoveBadge";
 import MoveCell from "./MoveCell";
 import { TreeStateContext } from "./TreeStateContext";
 
@@ -156,6 +159,11 @@ function CompleteMoveCell({
 }) {
   const store = useContext(TreeStateContext)!;
   const isStart = useStore(store, (s) => equal(movePath, s.headers.start));
+  const bookFens = useBookPositions();
+  const badge = useMoveClassification({
+    movePath,
+    isBook: !!fen && bookFens.has(fen),
+  });
 
   const isCurrentVariation = useStore(store, (s) => equal(s.position, movePath));
   const transpositions = useStoreWithEqualityFn(
@@ -186,6 +194,7 @@ function CompleteMoveCell({
         e.preventDefault();
       }}
       fullWidth={tableLayout}
+      badge={<MoveBadge classification={badge} />}
       rightAccessory={
         tableLayout && scoreText ? (
           <Text component="span" size="xs" c="dimmed">
