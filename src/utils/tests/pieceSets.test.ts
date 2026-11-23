@@ -129,9 +129,10 @@ test("maps piece image file names to slots", () => {
         "wK.txt": null,
         "king.png": null,
     };
-    for (const [fileName, expected] of Object.entries(cases)) {
-        expect(imageFileNameToSlot(fileName), fileName).toBe(expected);
-    }
+    const mapped = Object.fromEntries(
+        Object.keys(cases).map((fileName) => [fileName, imageFileNameToSlot(fileName)]),
+    );
+    expect(mapped).toEqual(cases);
 });
 
 test("slugifies and de-duplicates piece set names", () => {
