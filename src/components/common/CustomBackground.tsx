@@ -12,10 +12,19 @@ import {
 import {
   backgroundLayerStyle,
   clampBackgroundOpacity,
+  contrastColorForBackground,
   sanitizeBackgroundColor,
 } from "@/utils/background";
 import { backgroundImageUrl } from "@/utils/customBackground";
 import classes from "./CustomBackground.module.css";
+
+const BACKGROUND_VARIABLES = [
+  "--app-panel-background",
+  "--mantine-color-default",
+  "--mantine-color-default-hover",
+  "--mantine-color-default-color",
+  "--mantine-color-default-border",
+] as const;
 
 /**
  * Paints the user's custom background behind the application. The layer is
@@ -37,21 +46,42 @@ export default function CustomBackground() {
 
   useEffect(() => {
     const root = document.documentElement;
-    if (!enabled) {
-      root.style.removeProperty("--app-panel-background");
-      return;
+    for (const variable of BACKGROUND_VARIABLES) {
+      root.style.removeProperty(variable);
     }
+    if (!enabled) return;
+
+    const customColor = sanitizeBackgroundColor(color);
+    const base = customColor || "var(--mantine-color-body)";
+    const text = customColor
+      ? contrastColorForBackground(customColor)
+      : "var(--mantine-color-text)";
 
     // The app shell and panels use the background theme color at a user
     // configurable opacity, letting the custom background show through.
-    const base = sanitizeBackgroundColor(color) || "var(--mantine-color-body)";
     root.style.setProperty(
       "--app-panel-background",
       `color-mix(in srgb, ${base} ${clampBackgroundOpacity(panelOpacity)}%, transparent)`,
     );
 
+    // Default-variant buttons, action icons and similar controls normally use
+    // the near-black `--mantine-color-default`; match them to the background
+    // theme color and pick a readable text color.
+    root.style.setProperty("--mantine-color-default", base);
+    root.style.setProperty("--mantine-color-default-color", text);
+    root.style.setProperty(
+      "--mantine-color-default-hover",
+      `color-mix(in srgb, ${base} 88%, ${text})`,
+    );
+    root.style.setProperty(
+      "--mantine-color-default-border",
+      `color-mix(in srgb, ${base} 82%, ${text})`,
+    );
+
     return () => {
-      root.style.removeProperty("--app-panel-background");
+      for (const variable of BACKGROUND_VARIABLES) {
+        root.style.removeProperty(variable);
+      }
     };
   }, [enabled, color, panelOpacity]);
 

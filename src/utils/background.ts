@@ -81,6 +81,38 @@ export function sanitizeBackgroundColor(value: string): string {
     return /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(trimmed) ? trimmed : "";
 }
 
+/**
+ * Picks black or white text for a hex background color, using the WCAG
+ * relative luminance threshold.
+ */
+export function contrastColorForBackground(value: string): "#000000" | "#ffffff" {
+    const hex = sanitizeBackgroundColor(value);
+    if (!hex) return "#ffffff";
+
+    let r: number;
+    let g: number;
+    let b: number;
+    if (hex.length === 4 || hex.length === 5) {
+        r = Number.parseInt(`${hex[1]}${hex[1]}`, 16);
+        g = Number.parseInt(`${hex[2]}${hex[2]}`, 16);
+        b = Number.parseInt(`${hex[3]}${hex[3]}`, 16);
+    } else {
+        r = Number.parseInt(hex.slice(1, 3), 16);
+        g = Number.parseInt(hex.slice(3, 5), 16);
+        b = Number.parseInt(hex.slice(5, 7), 16);
+    }
+
+    const channel = (value: number) => {
+        const normalized = value / 255;
+        return normalized <= 0.03928
+            ? normalized / 12.92
+            : ((normalized + 0.055) / 1.055) ** 2.4;
+    };
+    const luminance = 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+
+    return luminance > 0.179 ? "#000000" : "#ffffff";
+}
+
 /** Quotes a URL so it can be embedded in a CSS `url()` token. */
 export function cssUrl(value: string): string {
     const escaped = value

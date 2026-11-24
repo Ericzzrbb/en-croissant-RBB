@@ -5,6 +5,7 @@ import {
     backgroundLayerStyle,
     clampBackgroundBrightness,
     clampBackgroundOpacity,
+    contrastColorForBackground,
     cssUrl,
     isSupportedBackgroundImage,
     sanitizeBackgroundColor,
@@ -91,4 +92,13 @@ test("only accepts hex background colors", () => {
     expect(sanitizeBackgroundColor("")).toBe("");
     expect(sanitizeBackgroundColor("red; display: none")).toBe("");
     expect(sanitizeBackgroundColor("var(--mantine-color-body)")).toBe("");
+});
+
+test("picks readable text colors for the background theme color", () => {
+    expect(contrastColorForBackground("#1A1B1E")).toBe("#ffffff");
+    expect(contrastColorForBackground("#000000")).toBe("#ffffff");
+    expect(contrastColorForBackground("#FFFFFF")).toBe("#000000");
+    expect(contrastColorForBackground("#F8F9FA")).toBe("#000000");
+    expect(contrastColorForBackground("#fff")).toBe("#000000");
+    expect(contrastColorForBackground("not-a-color")).toBe("#ffffff");
 });
