@@ -9,6 +9,7 @@ use std::{
 };
 
 use derivative::Derivative;
+use dashmap::DashMap;
 use governor::{Quota, RateLimiter};
 use log::{info, warn};
 use nonzero_ext::*;
@@ -32,7 +33,7 @@ use crate::{
         parse_fen_and_apply_moves, BaseEngine, EngineLog, EngineOption, EngineReader, GoMode,
     },
     error::Error,
-    progress::update_progress,
+    progress::{update_progress, ProgressStore},
     AppState,
 };
 
@@ -480,6 +481,27 @@ pub async fn cancel_analysis(id: String, state: tauri::State<'_, AppState>) -> R
     Ok(())
 }
 
+/// Clears the progress entry of a game report that did not finish.
+///
+/// The frontend keeps rendering the last progress item until it receives a
+/// `finished` event. A failed report never emits one, so without this guard the
+/// report button would stay in the "generating" state forever.
+struct ReportProgressGuard<'a> {
+    progress: &'a ProgressStore,
+    flags: &'a DashMap<String, Arc<AtomicBool>>,
+    id: String,
+    completed: bool,
+}
+
+impl Drop for ReportProgressGuard<'_> {
+    fn drop(&mut self) {
+        if !self.completed {
+            self.progress.remove(&self.id);
+            self.flags.remove(&self.id);
+        }
+    }
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn analyze_game(
@@ -495,6 +517,12 @@ pub async fn analyze_game(
     state
         .analysis_cancel_flags
         .insert(id.clone(), cancel_flag.clone());
+    let mut progress_guard = ReportProgressGuard {
+        progress: &state.progress_state,
+        flags: &state.analysis_cancel_flags,
+        id: id.clone(),
+        completed: false,
+    };
 
     let path = PathBuf::from(&engine);
     let mut analysis: Vec<MoveAnalysis> = Vec::new();
@@ -639,6 +667,7 @@ pub async fn analyze_game(
     }
     update_progress(&state.progress_state, &app, id.clone(), 100.0, true)?;
     state.analysis_cancel_flags.remove(&id);
+    progress_guard.completed = true;
     Ok(analysis)
 }
 

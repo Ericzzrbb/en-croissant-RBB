@@ -123,6 +123,23 @@ export const CLASSIFICATION_INFO: Record<MoveClassification, ClassificationInfo>
 };
 
 /**
+ * Classifications in the order they are listed in the game report summary.
+ * Mirrors `CLASSIFICATION_INFO.order`.
+ */
+export const MOVE_CLASSIFICATIONS: MoveClassification[] = [
+    "brilliant",
+    "great",
+    "best",
+    "excellent",
+    "good",
+    "book",
+    "inaccuracy",
+    "mistake",
+    "miss",
+    "blunder",
+];
+
+/**
  * Win percentage loss thresholds, matching the ones used by `getAnnotation` so
  * that the badge and the classical annotation never contradict each other.
  */

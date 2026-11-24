@@ -15,8 +15,9 @@ import { INITIAL_FEN, makeFen, parseFen } from "chessops/fen";
 import { isPawns, parseComment } from "chessops/pgn";
 import { makeSan, parseSan } from "chessops/san";
 import { commands, type Outcome, type Score, type Token } from "@/bindings";
-import { ANNOTATION_INFO, isBasicAnnotation, NAG_INFO } from "./annotation";
+import { ANNOTATION_INFO, NAG_INFO } from "./annotation";
 import { parseSanOrUci, positionFromFen } from "./chessops";
+import { resolveMoveClassification, type MoveClassification } from "./classification";
 import { harmonicMean, isPrefix, mean } from "./misc";
 import { formatScore, getAccuracy, getCPLoss, INITIAL_SCORE } from "./score";
 import {
@@ -573,24 +574,38 @@ type ColorMap<T> = {
     [key in Color]: T;
 };
 
-export function getGameStats(root: TreeNode) {
-    const whiteAnnotations = {
-        "??": 0,
-        "?": 0,
-        "?!": 0,
-        "!!": 0,
-        "!": 0,
-        "!?": 0,
-    };
+export type ClassificationStat = {
+    white: number;
+    black: number;
+    /** Path of the first white move with this classification, used to jump to it. */
+    whitePath: number[] | null;
+    /** Path of the first black move with this classification, used to jump to it. */
+    blackPath: number[] | null;
+};
 
-    const blackAnnotations = {
-        "??": 0,
-        "?": 0,
-        "?!": 0,
-        "!!": 0,
-        "!": 0,
-        "!?": 0,
+export type ClassificationStats = Record<MoveClassification, ClassificationStat>;
+
+function emptyClassificationStat(): ClassificationStat {
+    return { white: 0, black: 0, whitePath: null, blackPath: null };
+}
+
+function emptyClassificationStats(): ClassificationStats {
+    return {
+        brilliant: emptyClassificationStat(),
+        great: emptyClassificationStat(),
+        best: emptyClassificationStat(),
+        excellent: emptyClassificationStat(),
+        good: emptyClassificationStat(),
+        book: emptyClassificationStat(),
+        inaccuracy: emptyClassificationStat(),
+        mistake: emptyClassificationStat(),
+        miss: emptyClassificationStat(),
+        blunder: emptyClassificationStat(),
     };
+}
+
+export function getGameStats(root: TreeNode, bookFens?: ReadonlySet<string>) {
+    const classifications = emptyClassificationStats();
 
     if (root.children.length === 0) {
         return {
@@ -598,8 +613,7 @@ export function getGameStats(root: TreeNode) {
             blackCPL: 0,
             whiteAccuracy: 0,
             blackAccuracy: 0,
-            whiteAnnotations,
-            blackAnnotations,
+            classifications,
         };
     }
 
@@ -613,18 +627,34 @@ export function getGameStats(root: TreeNode) {
         black: [],
     };
     let node = root;
+    let path: number[] = [];
     while (node.children.length > 0) {
+        const parent = node;
         node = node.children[0];
-        for (const annotation of node.annotations) {
-            if (isBasicAnnotation(annotation)) {
-                if (node.halfMoves % 2 === 1) {
-                    whiteAnnotations[annotation]++;
-                } else {
-                    blackAnnotations[annotation]++;
-                }
+        path = [...path, 0];
+        const color = node.halfMoves % 2 === 1 ? "white" : "black";
+
+        // The same resolution the move list badges use, so the summary always
+        // agrees with the badges shown next to the moves.
+        const classification = resolveMoveClassification({
+            classification: node.classification,
+            annotations: node.annotations,
+            isBook: bookFens?.has(node.fen) ?? false,
+            evalBefore: parent.score?.value ?? null,
+            evalAfter: node.score?.value ?? null,
+            color,
+            playedMoveSan: node.san,
+        });
+        if (classification) {
+            const stat = classifications[classification];
+            stat[color] += 1;
+            if (color === "white") {
+                stat.whitePath ??= path;
+            } else {
+                stat.blackPath ??= path;
             }
         }
-        const color = node.halfMoves % 2 === 1 ? "white" : "black";
+
         if (node.score) {
             cplosses[color].push(getCPLoss(prevScore.value, node.score.value, color));
             accuracies[color].push(getAccuracy(prevScore.value, node.score.value, color));
@@ -641,8 +671,7 @@ export function getGameStats(root: TreeNode) {
         blackCPL,
         whiteAccuracy,
         blackAccuracy,
-        whiteAnnotations,
-        blackAnnotations,
+        classifications,
     };
 }
 

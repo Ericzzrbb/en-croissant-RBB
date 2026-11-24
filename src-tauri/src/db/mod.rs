@@ -91,6 +91,20 @@ pub fn create_duckdb_pool(
     path: &Path,
     extension_path: &Path,
 ) -> Result<Pool<DuckdbConnectionManager>, Error> {
+    // Fail before r2d2 retries connections until its timeout: a missing
+    // extension would otherwise make the databases look like they hang instead
+    // of reporting an actionable error.
+    if !extension_path.exists() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            format!(
+                "aixchess extension not found at: {}",
+                extension_path.display()
+            ),
+        )
+        .into());
+    }
+
     let config = Config::default()
         .allow_unsigned_extensions()?
         .access_mode(AccessMode::ReadWrite)?;

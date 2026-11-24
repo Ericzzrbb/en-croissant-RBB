@@ -1,5 +1,8 @@
 import { Button, Checkbox, Group, Modal, NumberInput, Select, Stack } from "@mantine/core";
 import { useForm } from "@mantine/form";
+import { notifications } from "@mantine/notifications";
+import { IconX } from "@tabler/icons-react";
+import { error as logError } from "@tauri-apps/plugin-log";
 import { useAtom, useAtomValue } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import { memo, useContext, useEffect, useMemo } from "react";
@@ -69,6 +72,20 @@ function ReportModal({
     form.setValues({ ...reportSettings, engine });
   }, [localEngines, reportSettings]);
 
+  function showError(message: string) {
+    // Cancelling from the progress button is a normal action, not a failure.
+    if (message === "Analysis cancelled") {
+      return;
+    }
+    void logError(message);
+    notifications.show({
+      title: t("Common.Error"),
+      message,
+      color: "red",
+      icon: <IconX size="1rem" />,
+    });
+  }
+
   function analyze() {
     setReportSettings(form.values);
     setInProgress(true);
@@ -98,7 +115,12 @@ function ReportModal({
           addAnalysis(analysis.data, {
             showVariations: form.values.variations,
           });
+        } else {
+          showError(analysis.error);
         }
+      })
+      .catch((cause) => {
+        showError(cause instanceof Error ? cause.message : String(cause));
       })
       .finally(() => setInProgress(false));
   }
